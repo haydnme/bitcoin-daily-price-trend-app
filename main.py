@@ -9,7 +9,7 @@ import matplotlib.gridspec as gridspec
 
 # Constants
 UPDATE_INTERVAL = 60000  # 1 minute in milliseconds
-SYMBOL = 'BTC-GBP'
+SYMBOL = 'BTC-USD'
 DATE_FORMAT = '%Y-%m-%d'  # Date format for the application title
 
 # Initialize global variables
@@ -51,7 +51,7 @@ def update_table(prices):
 
     # Add headers
     tk.Label(table_frame, text="Time", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky="ew")
-    tk.Label(table_frame, text="Price (GBP)", font=('Arial', 10, 'bold')).grid(row=0, column=1, sticky="ew")
+    tk.Label(table_frame, text="Price (USD)", font=('Arial', 10, 'bold')).grid(row=0, column=1, sticky="ew")
 
     # Display prices with color-coding
     prices_to_display = list(recent_prices[::-1].items())
@@ -115,8 +115,22 @@ def refresh_data():
     new_prices = fetch_data()
 
     if not new_prices.empty:
-        new_data = new_prices[~new_prices.index.isin(all_prices.index)]
-        all_prices = pd.concat([all_prices, new_data]) if not all_prices.empty else new_data
+        if not all_prices.empty:
+            # Check if new data is from a new day; if so, reset the data.
+            last_date = all_prices.index[-1].date()
+            new_date = new_prices.index[-1].date()
+            if new_date > last_date:
+                all_prices = new_prices
+            else:
+                # Append only new entries that are not already present.
+                new_data = new_prices[~new_prices.index.isin(all_prices.index)]
+                all_prices = pd.concat([all_prices, new_data])
+        else:
+            all_prices = new_prices
+
+        # Ensure the data is sorted by timestamp and remove any duplicate timestamps.
+        all_prices = all_prices.sort_index()
+        all_prices = all_prices[~all_prices.index.duplicated(keep='last')]
 
     update_table(all_prices)
     update_plots(all_prices)
